@@ -30,13 +30,21 @@ st.set_page_config(
 NAVY = "#1B3A5C"
 NAVY_DARK = "#122A45"
 AMBER = "#C98A2C"
+AMBER_LIGHT = "#E0AD5C"
 RED = "#B23A48"
+GREEN = "#3F7D6A"
 SLATE = "#5B6472"
 INK = "#232B38"
 BG = "#F9FAFA"
 CARD_BORDER = "#E4E7EC"
 
 CHART_SEQUENCE = [NAVY, AMBER, RED, "#6E8CAE", "#8C6A3F"]
+FUNNEL_COLORS = {
+    "Flagged": AMBER,
+    "Under Review": AMBER_LIGHT,
+    "Confirmed": RED,
+    "Cleared": GREEN,
+}
 
 pio.templates["fraud_theme"] = pio.templates["plotly_white"]
 pio.templates["fraud_theme"].layout.update(
@@ -274,15 +282,18 @@ with col2:
         .reset_index()
     )
     by_type["fraud_rate_pct"] = (by_type["flagged"] / by_type["total"] * 100).round(2)
+    by_type_sorted = by_type.sort_values("fraud_rate_pct", ascending=False)
     fig2 = px.bar(
-        by_type.sort_values("fraud_rate_pct", ascending=False),
+        by_type_sorted,
         x="claim_type", y="fraud_rate_pct",
         title="Fraud Flag Rate by Claim Type",
         labels={"claim_type": "Claim Type", "fraud_rate_pct": "Fraud Rate (%)"},
         text="fraud_rate_pct",
-        color_discrete_sequence=[AMBER],
     )
-    fig2.update_traces(marker_line_width=0, textposition="outside")
+    fig2.update_traces(
+        marker_color=CHART_SEQUENCE[: len(by_type_sorted)],
+        marker_line_width=0, textposition="outside",
+    )
     st.plotly_chart(fig2, use_container_width=True)
     st.caption("Takeaway: identifies which claim types carry the highest fraud risk.")
 
@@ -323,7 +334,9 @@ with col4:
         status_counts, x="count", y="review_status",
         title="Fraud Review Pipeline",
         labels={"count": "Number of Indicators", "review_status": "Stage"},
-        color_discrete_sequence=[NAVY],
+    )
+    fig4.update_traces(
+        marker=dict(color=[FUNNEL_COLORS.get(s, NAVY) for s in status_counts["review_status"]])
     )
     st.plotly_chart(fig4, use_container_width=True)
     st.caption("Takeaway: shows where cases are piling up in the review process.")
@@ -337,15 +350,19 @@ by_channel = (
     .reset_index()
 )
 by_channel["fraud_rate_pct"] = (by_channel["flagged"] / by_channel["total"] * 100).round(2)
+
+by_channel_sorted = by_channel.sort_values("fraud_rate_pct", ascending=False)
 fig5 = px.bar(
-    by_channel.sort_values("fraud_rate_pct", ascending=False),
+    by_channel_sorted,
     x="channel", y="fraud_rate_pct",
     title="Fraud Flag Rate by Sales Channel",
     labels={"channel": "Channel", "fraud_rate_pct": "Fraud Rate (%)"},
     text="fraud_rate_pct",
-    color_discrete_sequence=[NAVY],
 )
-fig5.update_traces(marker_line_width=0, textposition="outside")
+fig5.update_traces(
+    marker_color=CHART_SEQUENCE[: len(by_channel_sorted)],
+    marker_line_width=0, textposition="outside",
+)
 st.plotly_chart(fig5, use_container_width=True)
 st.caption("Takeaway: shows whether certain acquisition channels bring in riskier business.")
 
