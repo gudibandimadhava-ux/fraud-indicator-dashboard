@@ -424,7 +424,7 @@ with tab_overview:
                   help_text="Fraud-flagged claims / total claims (derived)")
     with k3:
         kpi_card("Fraud Indicators Raised", f"{total_indicators:,}", accent=NAVY)
-with k4:
+    with k4:
         kpi_card("Avg. Fraud Score", f"{avg_score:.1f}", accent=AMBER,
                   help_text="Average risk score (0-100) across raised indicators")
     with k5:
