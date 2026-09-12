@@ -54,8 +54,24 @@ pio.templates["fraud_theme"].layout.update(
     paper_bgcolor="#FFFFFF",
     plot_bgcolor="#FFFFFF",
     margin=dict(t=50, l=10, r=10, b=10),
+    transition=dict(duration=400, easing="cubic-in-out"),
+    hoverlabel=dict(font_family="IBM Plex Sans, sans-serif", font_size=13),
 )
 pio.templates.default = "fraud_theme"
+
+def add_depth(fig):
+    """Give bar/funnel traces a subtle beveled edge so they read with a little more depth."""
+    fig.update_traces(
+        selector=dict(type="bar"),
+        marker_line_width=1, marker_line_color="rgba(255,255,255,0.55)",
+    )
+    fig.update_traces(
+        selector=dict(type="funnel"),
+        marker_line_width=1, marker_line_color="rgba(255,255,255,0.55)",
+        connector=dict(line=dict(width=0)),
+    )
+    fig.update_layout(transition=dict(duration=400, easing="cubic-in-out"))
+    return fig
 
 st.markdown(f"""
 <style>
@@ -67,6 +83,15 @@ html, body, [class*="css"] {{
 
 .stApp {{
     background-color: {BG};
+}}
+
+/* Gentle one-time entrance -- content eases up into place on load */
+@keyframes riseIn {{
+    from {{ opacity: 0; transform: translateY(10px); }}
+    to   {{ opacity: 1; transform: translateY(0); }}
+}}
+.main .block-container > div {{
+    animation: riseIn 0.5s ease-out both;
 }}
 
 /* Main title */
@@ -90,6 +115,11 @@ section[data-testid="stSidebar"] * {{
 section[data-testid="stSidebar"] span[data-tag] {{
     background-color: {AMBER} !important;
     color: {INK} !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}}
+section[data-testid="stSidebar"] span[data-tag]:hover {{
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.35);
 }}
 section[data-testid="stSidebar"] span[data-tag] span {{
     color: {INK} !important;
@@ -98,14 +128,22 @@ section[data-testid="stSidebar"] span[data-tag] button {{
     color: {INK} !important;
 }}
 
-/* KPI cards */
+/* KPI cards -- layered shadow gives real lift, not a flat drop-shadow */
 .kpi-card {{
     background-color: #FFFFFF;
     border: 1px solid {CARD_BORDER};
     border-left: 4px solid var(--accent, {NAVY});
-    border-radius: 4px;
+    border-radius: 6px;
     padding: 14px 16px;
     height: 100%;
+    box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06);
+    transition: transform 0.22s cubic-bezier(.2,.8,.2,1),
+                box-shadow 0.22s cubic-bezier(.2,.8,.2,1);
+    will-change: transform;
+}}
+.kpi-card:hover {{
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(16,24,40,0.10), 0 4px 8px rgba(16,24,40,0.08);
 }}
 .kpi-label {{
     font-size: 12.5px;
@@ -118,6 +156,18 @@ section[data-testid="stSidebar"] span[data-tag] button {{
     font-weight: 700;
     color: {INK};
     font-feature-settings: "tnum";
+    transition: color 0.2s ease;
+}}
+
+/* Chart containers -- subtle lift + shadow on hover, same easing as KPI cards */
+div[data-testid="stPlotlyChart"] {{
+    border-radius: 6px;
+    transition: box-shadow 0.25s cubic-bezier(.2,.8,.2,1),
+                transform 0.25s cubic-bezier(.2,.8,.2,1);
+}}
+div[data-testid="stPlotlyChart"]:hover {{
+    box-shadow: 0 12px 24px rgba(16,24,40,0.10);
+    transform: translateY(-2px);
 }}
 
 /* Chart captions */
@@ -131,6 +181,11 @@ section[data-testid="stSidebar"] span[data-tag] button {{
 /* Section divider */
 hr {{
     border-color: {CARD_BORDER} !important;
+}}
+
+/* Dataframe: smooth row highlight instead of a hard flat hover */
+div[data-testid="stDataFrame"] * {{
+    transition: background-color 0.12s ease;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -269,7 +324,7 @@ with col1:
         color_discrete_sequence=[NAVY],
     )
     fig1.update_traces(line_width=2.5, marker=dict(size=6, color=NAVY))
-    st.plotly_chart(fig1, use_container_width=True)
+    st.plotly_chart(add_depth(fig1), use_container_width=True)
     st.caption("Takeaway: shows whether fraud activity is rising, falling, or seasonal.")
 
 # =========================================================
@@ -294,7 +349,7 @@ with col2:
         marker_color=CHART_SEQUENCE[: len(by_type_sorted)],
         marker_line_width=0, textposition="outside",
     )
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(add_depth(fig2), use_container_width=True)
     st.caption("Takeaway: identifies which claim types carry the highest fraud risk.")
 
 col3, col4 = st.columns(2)
@@ -317,7 +372,7 @@ with col3:
                 "avg_score": "Avg Score"},
     )
     fig3.update_traces(marker_line_width=0)
-    st.plotly_chart(fig3, use_container_width=True)
+    st.plotly_chart(add_depth(fig3), use_container_width=True)
     st.caption("Takeaway: shows which fraud signal fires most, and how severe it tends to be.")
 
 # =========================================================
@@ -338,7 +393,7 @@ with col4:
     fig4.update_traces(
         marker=dict(color=[FUNNEL_COLORS.get(s, NAVY) for s in status_counts["review_status"]])
     )
-    st.plotly_chart(fig4, use_container_width=True)
+    st.plotly_chart(add_depth(fig4), use_container_width=True)
     st.caption("Takeaway: shows where cases are piling up in the review process.")
 
 # =========================================================
@@ -363,7 +418,7 @@ fig5.update_traces(
     marker_color=CHART_SEQUENCE[: len(by_channel_sorted)],
     marker_line_width=0, textposition="outside",
 )
-st.plotly_chart(fig5, use_container_width=True)
+st.plotly_chart(add_depth(fig5), use_container_width=True)
 st.caption("Takeaway: shows whether certain acquisition channels bring in riskier business.")
 
 st.divider()
