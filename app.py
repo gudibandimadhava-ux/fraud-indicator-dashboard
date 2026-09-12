@@ -20,6 +20,7 @@ st.set_page_config(
     page_title="Fraud Indicator Dashboard",
     page_icon="🔍",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 # =========================================================
@@ -105,26 +106,30 @@ h2, h3 {{
     font-weight: 600 !important;
 }}
 
-/* Sidebar */
+/* Sidebar (still used by Streamlit for the collapse arrow / mobile nav) */
 section[data-testid="stSidebar"] {{
     background-color: {NAVY_DARK};
 }}
-section[data-testid="stSidebar"] * {{
-    color: #E8EDF3 !important;
+
+/* Filter bar label sits above Streamlit's native bordered container */
+.filter-bar-label {{
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    color: {SLATE};
+    margin-bottom: 6px;
 }}
-section[data-testid="stSidebar"] span[data-tag] {{
+div[data-testid="stMultiSelect"] span[data-tag] {{
     background-color: {AMBER} !important;
     color: {INK} !important;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
 }}
-section[data-testid="stSidebar"] span[data-tag]:hover {{
+div[data-testid="stMultiSelect"] span[data-tag]:hover {{
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.18);
 }}
-section[data-testid="stSidebar"] span[data-tag] span {{
-    color: {INK} !important;
-}}
-section[data-testid="stSidebar"] span[data-tag] button {{
+div[data-testid="stMultiSelect"] span[data-tag] span,
+div[data-testid="stMultiSelect"] span[data-tag] button {{
     color: {INK} !important;
 }}
 
@@ -221,31 +226,35 @@ st.caption(
 )
 
 # =========================================================
-# SIDEBAR FILTERS (interactive, cross-filter everything below)
+# FILTER BAR -- a panel under the title, not a sidebar.
+# Keeps filters visually attached to the content they control.
 # =========================================================
-st.sidebar.header("Filters")
+st.markdown('<div class="filter-bar-label">FILTERS</div>', unsafe_allow_html=True)
+with st.container(border=True):
+    fc1, fc2, fc3 = st.columns(3)
+    claim_types = sorted(indicators["claim_type"].dropna().unique())
+    with fc1:
+        selected_types = st.multiselect(
+            "Claim type", claim_types, default=claim_types
+        )
+    channels = sorted(indicators["channel"].dropna().unique())
+    with fc2:
+        selected_channels = st.multiselect(
+            "Channel", channels, default=channels
+        )
+    review_statuses = sorted(indicators["review_status"].dropna().unique())
+    with fc3:
+        selected_statuses = st.multiselect(
+            "Review status", review_statuses, default=review_statuses
+        )
 
-claim_types = sorted(indicators["claim_type"].dropna().unique())
-selected_types = st.sidebar.multiselect(
-    "Claim type", claim_types, default=claim_types
-)
-
-channels = sorted(indicators["channel"].dropna().unique())
-selected_channels = st.sidebar.multiselect(
-    "Channel", channels, default=channels
-)
-
-review_statuses = sorted(indicators["review_status"].dropna().unique())
-selected_statuses = st.sidebar.multiselect(
-    "Review status", review_statuses, default=review_statuses
-)
-
-months = sorted(indicators["claim_month"].dropna().unique())
-selected_months = st.sidebar.select_slider(
-    "Claim month range",
-    options=months,
-    value=(months[0], months[-1]),
-)
+    months = sorted(indicators["claim_month"].dropna().unique())
+    selected_months = st.select_slider(
+        "Claim month range",
+        options=months,
+        value=(months[0], months[-1]),
+    )
+st.write("")
 
 # Apply filters to the indicators table
 mask = (
