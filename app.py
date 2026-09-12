@@ -10,6 +10,7 @@ Run it locally with:   streamlit run app.py
 
 import pandas as pd
 import plotly.express as px
+import plotly.io as pio
 import streamlit as st
 
 # =========================================================
@@ -22,21 +23,138 @@ st.set_page_config(
 )
 
 # =========================================================
+# VISUAL THEME
+# A small, deliberate palette for a risk/fraud console:
+# navy = structure, amber = "pay attention", red = confirmed loss.
+# =========================================================
+NAVY = "#1B3A5C"
+NAVY_DARK = "#122A45"
+AMBER = "#C98A2C"
+RED = "#B23A48"
+SLATE = "#5B6472"
+INK = "#232B38"
+BG = "#F9FAFA"
+CARD_BORDER = "#E4E7EC"
+
+CHART_SEQUENCE = [NAVY, AMBER, RED, "#6E8CAE", "#8C6A3F"]
+
+pio.templates["fraud_theme"] = pio.templates["plotly_white"]
+pio.templates["fraud_theme"].layout.update(
+    font=dict(family="IBM Plex Sans, sans-serif", color=INK, size=13),
+    title=dict(font=dict(family="IBM Plex Sans, sans-serif", size=16, color=INK)),
+    colorway=CHART_SEQUENCE,
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    margin=dict(t=50, l=10, r=10, b=10),
+)
+pio.templates.default = "fraud_theme"
+
+st.markdown(f"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+html, body, [class*="css"] {{
+    font-family: 'IBM Plex Sans', sans-serif;
+}}
+
+.stApp {{
+    background-color: {BG};
+}}
+
+/* Main title */
+h1 {{
+    color: {NAVY_DARK} !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.5px;
+}}
+h2, h3 {{
+    color: {NAVY_DARK} !important;
+    font-weight: 600 !important;
+}}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {{
+    background-color: {NAVY_DARK};
+}}
+section[data-testid="stSidebar"] * {{
+    color: #E8EDF3 !important;
+}}
+section[data-testid="stSidebar"] span[data-tag] {{
+    background-color: {AMBER} !important;
+    color: {INK} !important;
+}}
+section[data-testid="stSidebar"] span[data-tag] span {{
+    color: {INK} !important;
+}}
+section[data-testid="stSidebar"] span[data-tag] button {{
+    color: {INK} !important;
+}}
+
+/* KPI cards */
+.kpi-card {{
+    background-color: #FFFFFF;
+    border: 1px solid {CARD_BORDER};
+    border-left: 4px solid var(--accent, {NAVY});
+    border-radius: 4px;
+    padding: 14px 16px;
+    height: 100%;
+}}
+.kpi-label {{
+    font-size: 12.5px;
+    color: {SLATE};
+    font-weight: 500;
+    margin-bottom: 4px;
+}}
+.kpi-value {{
+    font-size: 26px;
+    font-weight: 700;
+    color: {INK};
+    font-feature-settings: "tnum";
+}}
+
+/* Chart captions */
+.chart-caption {{
+    color: {SLATE};
+    font-size: 13px;
+    margin-top: -6px;
+    margin-bottom: 18px;
+}}
+
+/* Section divider */
+hr {{
+    border-color: {CARD_BORDER} !important;
+}}
+</style>
+""", unsafe_allow_html=True)
+
+
+def kpi_card(label, value, accent=NAVY, help_text=None):
+    """Render one KPI as a small flat card with a colored accent bar."""
+    tooltip = f' title="{help_text}"' if help_text else ""
+    st.markdown(
+        f"""<div class="kpi-card" style="--accent:{accent}"{tooltip}>
+                <div class="kpi-label">{label}</div>
+                <div class="kpi-value">{value}</div>
+            </div>""",
+        unsafe_allow_html=True,
+    )
+
+# =========================================================
 # LOAD DATA
 # (these files were produced by data_prep.py -- run that first)
 # =========================================================
 @st.cache_data  # caches the data so it doesn't reload on every click
 def load_data():
-    claims = pd.read_csv("claims_clean.csv")
-    indicators = pd.read_csv("indicators_clean.csv")
+    claims = pd.read_csv("data/claims_clean.csv")
+    indicators = pd.read_csv("data/indicators_clean.csv")
     return claims, indicators
 
 claims, indicators = load_data()
 
-st.title("🔍 Fraud Indicator Dashboard")
+st.title("Fraud Indicator Dashboard")
 st.caption(
-    "Business question: What fraud is happening, why, and what should the "
-    "claims/fraud team do about it? | Data: synthetic course dataset"
+    "What fraud is happening, why, and what the claims/fraud team should do about it "
+    "— synthetic course dataset"
 )
 
 # =========================================================
@@ -108,16 +226,22 @@ exposure = f_claims.loc[f_claims["fraud_flag"] == 1, "claim_amount"].sum()
 # =========================================================
 st.subheader("What is happening?")
 k1, k2, k3, k4, k5 = st.columns(5)
-k1.metric("Total Claims (filtered)", f"{total_claims:,}")
-k2.metric("Fraud Flag Rate", f"{fraud_flag_rate:.1f}%",
-          help="Fraud-flagged claims ÷ total claims. Derived metric.")
-k3.metric("Fraud Indicators Raised", f"{total_indicators:,}")
-k4.metric("Avg. Fraud Score", f"{avg_score:.1f}",
-          help="Average risk score (0-100) across raised indicators.")
-k5.metric("Confirmed Rate", f"{confirmed_rate:.1f}%",
-          help="Of indicators resolved (Confirmed or Cleared), % that were Confirmed fraud. Derived metric.")
+with k1:
+    kpi_card("Total Claims (filtered)", f"{total_claims:,}", accent=NAVY)
+with k2:
+    kpi_card("Fraud Flag Rate", f"{fraud_flag_rate:.1f}%", accent=AMBER,
+              help_text="Fraud-flagged claims / total claims (derived)")
+with k3:
+    kpi_card("Fraud Indicators Raised", f"{total_indicators:,}", accent=NAVY)
+with k4:
+    kpi_card("Avg. Fraud Score", f"{avg_score:.1f}", accent=AMBER,
+              help_text="Average risk score (0-100) across raised indicators")
+with k5:
+    kpi_card("Confirmed Rate", f"{confirmed_rate:.1f}%", accent=RED,
+              help_text="Of resolved indicators, % that were Confirmed fraud (derived)")
 
-st.metric("Claim Amount at Risk (fraud-flagged claims)", f"₹{exposure:,.0f}")
+st.write("")
+kpi_card("Claim Amount at Risk (fraud-flagged claims)", f"₹{exposure:,.0f}", accent=RED)
 
 st.divider()
 
@@ -134,7 +258,9 @@ with col1:
         trend, x="claim_month", y="indicator_count", markers=True,
         title="Fraud Indicators Raised Over Time",
         labels={"claim_month": "Month", "indicator_count": "Indicators Raised"},
+        color_discrete_sequence=[NAVY],
     )
+    fig1.update_traces(line_width=2.5, marker=dict(size=6, color=NAVY))
     st.plotly_chart(fig1, use_container_width=True)
     st.caption("Takeaway: shows whether fraud activity is rising, falling, or seasonal.")
 
@@ -154,7 +280,9 @@ with col2:
         title="Fraud Flag Rate by Claim Type",
         labels={"claim_type": "Claim Type", "fraud_rate_pct": "Fraud Rate (%)"},
         text="fraud_rate_pct",
+        color_discrete_sequence=[AMBER],
     )
+    fig2.update_traces(marker_line_width=0, textposition="outside")
     st.plotly_chart(fig2, use_container_width=True)
     st.caption("Takeaway: identifies which claim types carry the highest fraud risk.")
 
@@ -172,11 +300,12 @@ with col3:
     )
     fig3 = px.bar(
         by_indicator, x="indicator_type", y="count",
-        color="avg_score", color_continuous_scale="Reds",
+        color="avg_score", color_continuous_scale=[NAVY, AMBER, RED],
         title="Indicator Volume & Avg. Risk Score by Type",
         labels={"indicator_type": "Indicator Type", "count": "Number Raised",
                 "avg_score": "Avg Score"},
     )
+    fig3.update_traces(marker_line_width=0)
     st.plotly_chart(fig3, use_container_width=True)
     st.caption("Takeaway: shows which fraud signal fires most, and how severe it tends to be.")
 
@@ -194,6 +323,7 @@ with col4:
         status_counts, x="count", y="review_status",
         title="Fraud Review Pipeline",
         labels={"count": "Number of Indicators", "review_status": "Stage"},
+        color_discrete_sequence=[NAVY],
     )
     st.plotly_chart(fig4, use_container_width=True)
     st.caption("Takeaway: shows where cases are piling up in the review process.")
@@ -213,7 +343,9 @@ fig5 = px.bar(
     title="Fraud Flag Rate by Sales Channel",
     labels={"channel": "Channel", "fraud_rate_pct": "Fraud Rate (%)"},
     text="fraud_rate_pct",
+    color_discrete_sequence=[NAVY],
 )
+fig5.update_traces(marker_line_width=0, textposition="outside")
 st.plotly_chart(fig5, use_container_width=True)
 st.caption("Takeaway: shows whether certain acquisition channels bring in riskier business.")
 
