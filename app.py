@@ -27,8 +27,8 @@ st.set_page_config(
 # =========================================================
 @st.cache_data  # caches the data so it doesn't reload on every click
 def load_data():
-    claims = pd.read_csv("data/claims_clean.csv")
-    indicators = pd.read_csv("data/indicators_clean.csv")
+    claims = pd.read_csv("claims_clean.csv")
+    indicators = pd.read_csv("indicators_clean.csv")
     return claims, indicators
 
 claims, indicators = load_data()
