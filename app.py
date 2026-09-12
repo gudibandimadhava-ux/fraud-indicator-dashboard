@@ -183,6 +183,66 @@ div[data-testid="stPlotlyChart"]:hover {{
     margin-bottom: 18px;
 }}
 
+/* Smooth scrolling for the anchor-link navigation */
+html {{
+    scroll-behavior: smooth;
+}}
+
+/* Quick nav -- jump links under the title */
+.quick-nav {{
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 4px 0 22px 0;
+}}
+.quick-nav a {{
+    text-decoration: none;
+    background-color: #FFFFFF;
+    border: 1px solid {CARD_BORDER};
+    color: {NAVY_DARK};
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 999px;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}}
+.quick-nav a:hover {{
+    background-color: {NAVY};
+    color: #FFFFFF;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(16,24,40,0.15);
+}}
+
+/* Scroll-margin so anchored sections don't hide under sticky chrome */
+[id] {{
+    scroll-margin-top: 20px;
+}}
+
+/* Floating back-to-top button */
+.back-to-top {{
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    background-color: {NAVY};
+    color: #FFFFFF !important;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 20px;
+    box-shadow: 0 4px 12px rgba(16,24,40,0.25);
+    transition: transform 0.2s cubic-bezier(.2,.8,.2,1), box-shadow 0.2s ease, background-color 0.2s ease;
+    z-index: 999;
+}}
+.back-to-top:hover {{
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(16,24,40,0.30);
+    background-color: {NAVY_DARK};
+}}
+
 /* Section divider */
 hr {{
     border-color: {CARD_BORDER} !important;
@@ -219,6 +279,7 @@ def load_data():
 
 claims, indicators = load_data()
 
+st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 st.title("Fraud Indicator Dashboard")
 st.caption(
     "What fraud is happening, why, and what the claims/fraud team should do about it "
@@ -226,9 +287,22 @@ st.caption(
 )
 
 # =========================================================
+# QUICK NAV -- jump to any section without scrolling manually
+# =========================================================
+st.markdown("""
+<div class="quick-nav">
+    <a href="#filters">Filters</a>
+    <a href="#what-is-happening">KPIs</a>
+    <a href="#why-is-it-happening">Trends &amp; Drivers</a>
+    <a href="#drill-down">Drill-down</a>
+</div>
+""", unsafe_allow_html=True)
+
+# =========================================================
 # FILTER BAR -- a panel under the title, not a sidebar.
 # Keeps filters visually attached to the content they control.
 # =========================================================
+st.markdown('<div id="filters"></div>', unsafe_allow_html=True)
 st.markdown('<div class="filter-bar-label">FILTERS</div>', unsafe_allow_html=True)
 with st.container(border=True):
     fc1, fc2, fc3 = st.columns(3)
@@ -296,6 +370,7 @@ exposure = f_claims.loc[f_claims["fraud_flag"] == 1, "claim_amount"].sum()
 # =========================================================
 # KPI CARDS
 # =========================================================
+st.markdown('<div id="what-is-happening"></div>', unsafe_allow_html=True)
 st.subheader("What is happening?")
 k1, k2, k3, k4, k5 = st.columns(5)
 with k1:
@@ -320,6 +395,7 @@ st.divider()
 # =========================================================
 # VISUAL 1 -- Trend: fraud indicators raised per month
 # =========================================================
+st.markdown('<div id="why-is-it-happening"></div>', unsafe_allow_html=True)
 st.subheader("Why is it happening? — Trends & drivers")
 
 col1, col2 = st.columns(2)
@@ -435,6 +511,7 @@ st.divider()
 # =========================================================
 # DRILL-DOWN -- pick a claim type to see underlying records
 # =========================================================
+st.markdown('<div id="drill-down"></div>', unsafe_allow_html=True)
 st.subheader("Drill-down: underlying records")
 drill_type = st.selectbox("Choose a claim type to inspect", claim_types)
 drill_df = f_indicators[f_indicators["claim_type"] == drill_type][
@@ -445,4 +522,12 @@ st.dataframe(drill_df, use_container_width=True)
 st.caption(
     f"Showing {len(drill_df)} fraud-indicator records for claim type "
     f"'{drill_type}', sorted by risk score (highest first)."
+)
+
+# =========================================================
+# BACK TO TOP -- floating button, always in view
+# =========================================================
+st.markdown(
+    '<a href="#top" class="back-to-top" title="Back to top">↑</a>',
+    unsafe_allow_html=True,
 )
