@@ -175,12 +175,36 @@ div[data-testid="stPlotlyChart"]:hover {{
     transform: translateY(-2px);
 }}
 
-/* Chart captions */
-.chart-caption {{
-    color: {SLATE};
-    font-size: 13px;
-    margin-top: -6px;
-    margin-bottom: 18px;
+/* Executive insight banner -- the headline finding, always visible up top */
+.insight-banner {{
+    background: linear-gradient(135deg, {NAVY} 0%, {NAVY_DARK} 100%);
+    border-radius: 8px;
+    padding: 18px 24px;
+    margin: 4px 0 24px 0;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    box-shadow: 0 4px 14px rgba(18,42,69,0.20);
+}}
+.insight-number {{
+    font-size: 40px;
+    font-weight: 700;
+    color: {AMBER_LIGHT};
+    line-height: 1;
+    white-space: nowrap;
+}}
+.insight-text {{
+    color: #E8EDF3;
+    font-size: 14.5px;
+    line-height: 1.5;
+}}
+.insight-text b {{
+    color: #FFFFFF;
+}}
+
+/* Benchmark reference line label */
+.js-plotly-plot .annotation-text {{
+    font-weight: 600 !important;
 }}
 
 /* Smooth scrolling for the anchor-link navigation */
@@ -286,23 +310,15 @@ st.caption(
     "— synthetic course dataset"
 )
 
-# =========================================================
-# QUICK NAV -- jump to any section without scrolling manually
-# =========================================================
-st.markdown("""
-<div class="quick-nav">
-    <a href="#filters">Filters</a>
-    <a href="#what-is-happening">KPIs</a>
-    <a href="#why-is-it-happening">Trends &amp; Drivers</a>
-    <a href="#drill-down">Drill-down</a>
-</div>
-""", unsafe_allow_html=True)
+# Placeholder for the executive insight banner -- filled in further down,
+# once the current filter selection has been applied to the data, but it
+# renders here at the top so it's the first thing a reader sees.
+insight_banner = st.empty()
 
 # =========================================================
 # FILTER BAR -- a panel under the title, not a sidebar.
 # Keeps filters visually attached to the content they control.
 # =========================================================
-st.markdown('<div id="filters"></div>', unsafe_allow_html=True)
 st.markdown('<div class="filter-bar-label">FILTERS</div>', unsafe_allow_html=True)
 with st.container(border=True):
     fc1, fc2, fc3 = st.columns(3)
@@ -367,38 +383,62 @@ confirmed_rate = (
 
 exposure = f_claims.loc[f_claims["fraud_flag"] == 1, "claim_amount"].sum()
 
+# ---------------------------------------------------------
+# Executive insight -- the one finding worth leading with:
+# how much of the fraud-flagged book is missed by the
+# separate rule-based indicator pipeline (recomputed live
+# for whatever filters are currently applied).
+# ---------------------------------------------------------
+flagged_ids = set(f_claims.loc[f_claims["fraud_flag"] == 1, "claim_id"])
+indicator_ids = set(f_indicators["claim_id"])
+overlap_n = len(flagged_ids & indicator_ids)
+gap_pct = (100 - (overlap_n / len(flagged_ids) * 100)) if flagged_ids else 0
+
+insight_banner.markdown(f"""
+<div class="insight-banner">
+    <div class="insight-number">{gap_pct:.0f}%</div>
+    <div class="insight-text">
+        of fraud-flagged claims in the current view have <b>no matching fraud-indicator
+        record</b> — the automated flag and the rule-based indicator pipeline are largely
+        catching different claims.
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
 # =========================================================
-# KPI CARDS
+# TABS -- Overview / Trends & Drivers / Review Pipeline / Drill-down
+# Replaces one long scroll: each tab loads instantly, no scrolling
+# needed to reach a section.
 # =========================================================
-st.markdown('<div id="what-is-happening"></div>', unsafe_allow_html=True)
-st.subheader("What is happening?")
-k1, k2, k3, k4, k5 = st.columns(5)
-with k1:
-    kpi_card("Total Claims (filtered)", f"{total_claims:,}", accent=NAVY)
-with k2:
-    kpi_card("Fraud Flag Rate", f"{fraud_flag_rate:.1f}%", accent=AMBER,
-              help_text="Fraud-flagged claims / total claims (derived)")
-with k3:
-    kpi_card("Fraud Indicators Raised", f"{total_indicators:,}", accent=NAVY)
+tab_overview, tab_trends, tab_pipeline, tab_drilldown = st.tabs(
+    ["📊 Overview", "📈 Trends & Drivers", "🔎 Review Pipeline", "🗂️ Drill-down"]
+)
+
+with tab_overview:
+    st.subheader("What is happening?")
+    k1, k2, k3, k4, k5 = st.columns(5)
+    with k1:
+        kpi_card("Total Claims (filtered)", f"{total_claims:,}", accent=NAVY)
+    with k2:
+        kpi_card("Fraud Flag Rate", f"{fraud_flag_rate:.1f}%", accent=AMBER,
+                  help_text="Fraud-flagged claims / total claims (derived)")
+    with k3:
+        kpi_card("Fraud Indicators Raised", f"{total_indicators:,}", accent=NAVY)
 with k4:
-    kpi_card("Avg. Fraud Score", f"{avg_score:.1f}", accent=AMBER,
-              help_text="Average risk score (0-100) across raised indicators")
-with k5:
-    kpi_card("Confirmed Rate", f"{confirmed_rate:.1f}%", accent=RED,
-              help_text="Of resolved indicators, % that were Confirmed fraud (derived)")
+        kpi_card("Avg. Fraud Score", f"{avg_score:.1f}", accent=AMBER,
+                  help_text="Average risk score (0-100) across raised indicators")
+    with k5:
+        kpi_card("Confirmed Rate", f"{confirmed_rate:.1f}%", accent=RED,
+                  help_text="Of resolved indicators, % that were Confirmed fraud (derived)")
 
-st.write("")
-kpi_card("Claim Amount at Risk (fraud-flagged claims)", f"₹{exposure:,.0f}", accent=RED)
-
-st.divider()
+    st.write("")
+    kpi_card("Claim Amount at Risk (fraud-flagged claims)", f"₹{exposure:,.0f}", accent=RED)
 
 # =========================================================
-# VISUAL 1 -- Trend: fraud indicators raised per month
+# TRENDS & DRIVERS TAB
 # =========================================================
-st.markdown('<div id="why-is-it-happening"></div>', unsafe_allow_html=True)
-st.subheader("Why is it happening? — Trends & drivers")
-
-col1, col2 = st.columns(2)
+with tab_trends:
+    col1, col2 = st.columns(2)
 
 with col1:
     trend = f_indicators.groupby("claim_month").size().reset_index(name="indicator_count")
