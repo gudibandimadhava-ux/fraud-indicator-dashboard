@@ -43,8 +43,8 @@ pio.templates["fraud_theme"].layout.update(
     font=dict(family="IBM Plex Sans, sans-serif", color=INK, size=13),
     title=dict(font=dict(family="IBM Plex Sans, sans-serif", size=16, color=INK)),
     colorway=CHART_SEQUENCE,
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="#FFFFFF",
+    plot_bgcolor="#FFFFFF",
     margin=dict(t=50, l=10, r=10, b=10),
 )
 pio.templates.default = "fraud_theme"
