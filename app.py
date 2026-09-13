@@ -8,6 +8,7 @@ this file top to bottom with the new filter values.
 Run it locally with:   streamlit run app.py
 """
 
+import base64
 import pandas as pd
 import plotly.express as px
 import plotly.io as pio
@@ -175,6 +176,30 @@ div[data-testid="stPlotlyChart"]:hover {{
     transform: translateY(-2px);
 }}
 
+/* Byline -- small author credit under the title */
+.byline {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 14px 0 20px 0;
+}}
+.byline-photo {{
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid {CARD_BORDER};
+}}
+.byline-name {{
+    font-size: 14px;
+    font-weight: 600;
+    color: {INK};
+}}
+.byline-meta {{
+    font-size: 12.5px;
+    color: {SLATE};
+}}
+
 /* Executive insight banner -- the headline finding, always visible up top */
 .insight-banner {{
     background: linear-gradient(135deg, {NAVY} 0%, {NAVY_DARK} 100%);
@@ -307,8 +332,28 @@ st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 st.title("Fraud Indicator Dashboard")
 st.caption(
     "What fraud is happening, why, and what the claims/fraud team should do about it "
-    "— synthetic course dataset"
+    "- synthetic course dataset"
 )
+
+# ---------------------------------------------------------
+# Byline -- identifies who this submission belongs to.
+# Falls back to plain text if profile.jpg isn't found, so a
+# missing photo never breaks the whole dashboard.
+# ---------------------------------------------------------
+try:
+    with open("profile.jpg", "rb") as f:
+        profile_b64 = base64.b64encode(f.read()).decode()
+    st.markdown(f"""
+    <div class="byline">
+        <img src="data:image/jpeg;base64,{profile_b64}" class="byline-photo" />
+        <div class="byline-text">
+            <div class="byline-name">Gudibandi Madhava</div>
+            <div class="byline-meta">Roll No: 25WU0203012 &middot; MBA-FS</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+except FileNotFoundError:
+    st.caption("Submitted by Gudibandi Madhava | Roll No: 25WU0203012 | MBA-FS")
 
 # Placeholder for the executive insight banner -- filled in further down,
 # once the current filter selection has been applied to the data, but it
@@ -399,7 +444,7 @@ insight_banner.markdown(f"""
     <div class="insight-number">{gap_pct:.0f}%</div>
     <div class="insight-text">
         of fraud-flagged claims in the current view have <b>no matching fraud-indicator
-        record</b> — the automated flag and the rule-based indicator pipeline are largely
+        record</b>. The automated flag and the rule-based indicator pipeline are largely
         catching different claims.
     </div>
 </div>
@@ -552,7 +597,7 @@ with tab_pipeline:
     fig_col, _ = st.columns([2, 1])
     with fig_col:
         st.plotly_chart(add_depth(fig4), width='stretch')
-    st.caption("Takeaway: shows where cases are piling up in the review process — "
+    st.caption("Takeaway: shows where cases are piling up in the review process. "
                "amber stages are still open, red is confirmed fraud, green is cleared.")
 
 # =========================================================
