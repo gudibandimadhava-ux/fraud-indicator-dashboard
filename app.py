@@ -440,70 +440,101 @@ with tab_overview:
 with tab_trends:
     col1, col2 = st.columns(2)
 
-with col1:
-    trend = f_indicators.groupby("claim_month").size().reset_index(name="indicator_count")
-    fig1 = px.line(
-        trend, x="claim_month", y="indicator_count", markers=True,
-        title="Fraud Indicators Raised Over Time",
-        labels={"claim_month": "Month", "indicator_count": "Indicators Raised"},
-        color_discrete_sequence=[NAVY],
-    )
-    fig1.update_traces(line_width=2.5, marker=dict(size=6, color=NAVY))
-    st.plotly_chart(add_depth(fig1), use_container_width=True)
-    st.caption("Takeaway: shows whether fraud activity is rising, falling, or seasonal.")
+with tab_trends:
+    col1, col2 = st.columns(2)
+
+    with col1:
+        trend = f_indicators.groupby("claim_month").size().reset_index(name="indicator_count")
+        fig1 = px.line(
+            trend, x="claim_month", y="indicator_count", markers=True,
+            title="Fraud Indicators Raised Over Time",
+            labels={"claim_month": "Month", "indicator_count": "Indicators Raised"},
+            color_discrete_sequence=[NAVY],
+        )
+        fig1.update_traces(line_width=2.5, marker=dict(size=6, color=NAVY))
+        st.plotly_chart(add_depth(fig1), width='stretch')
+        st.caption("Takeaway: shows whether fraud activity is rising, falling, or seasonal.")
+
+    with col2:
+        by_type = (
+            f_claims.groupby("claim_type")
+            .agg(total=("claim_id", "count"), flagged=("fraud_flag", "sum"))
+            .reset_index()
+        )
+        by_type["fraud_rate_pct"] = (by_type["flagged"] / by_type["total"] * 100).round(2)
+        by_type_sorted = by_type.sort_values("fraud_rate_pct", ascending=False)
+        fig2 = px.bar(
+            by_type_sorted,
+            x="claim_type", y="fraud_rate_pct",
+            title="Fraud Flag Rate by Claim Type",
+            labels={"claim_type": "Claim Type", "fraud_rate_pct": "Fraud Rate (%)"},
+            text="fraud_rate_pct",
+        )
+        fig2.update_traces(
+            marker_color=CHART_SEQUENCE[: len(by_type_sorted)],
+            marker_line_width=0, textposition="outside",
+        )
+        fig2.add_hline(
+            y=fraud_flag_rate, line_dash="dash", line_color=SLATE, line_width=1.5,
+            annotation_text=f"Book average: {fraud_flag_rate:.1f}%",
+            annotation_position="top left",
+            annotation_font=dict(color=SLATE, size=12),
+        )
+        st.plotly_chart(add_depth(fig2), width='stretch')
+        st.caption("Takeaway: identifies which claim types carry the highest fraud risk, relative to the book average.")
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+        by_indicator = (
+            f_indicators.groupby("indicator_type")
+            .agg(count=("indicator_id", "count"), avg_score=("score", "mean"))
+            .reset_index()
+            .sort_values("count", ascending=False)
+        )
+        fig3 = px.bar(
+            by_indicator, x="indicator_type", y="count",
+            color="avg_score", color_continuous_scale=[NAVY, AMBER, RED],
+            title="Indicator Volume & Avg. Risk Score by Type",
+            labels={"indicator_type": "Indicator Type", "count": "Number Raised",
+                    "avg_score": "Avg Score"},
+        )
+        fig3.update_traces(marker_line_width=0)
+        st.plotly_chart(add_depth(fig3), width='stretch')
+        st.caption("Takeaway: shows which fraud signal fires most, and how severe it tends to be.")
+
+    with col4:
+        by_channel = (
+            f_claims.groupby("channel")
+            .agg(total=("claim_id", "count"), flagged=("fraud_flag", "sum"))
+            .reset_index()
+        )
+        by_channel["fraud_rate_pct"] = (by_channel["flagged"] / by_channel["total"] * 100).round(2)
+        by_channel_sorted = by_channel.sort_values("fraud_rate_pct", ascending=False)
+        fig5 = px.bar(
+            by_channel_sorted,
+            x="channel", y="fraud_rate_pct",
+            title="Fraud Flag Rate by Sales Channel",
+            labels={"channel": "Channel", "fraud_rate_pct": "Fraud Rate (%)"},
+            text="fraud_rate_pct",
+        )
+        fig5.update_traces(
+            marker_color=CHART_SEQUENCE[: len(by_channel_sorted)],
+            marker_line_width=0, textposition="outside",
+        )
+        fig5.add_hline(
+            y=fraud_flag_rate, line_dash="dash", line_color=SLATE, line_width=1.5,
+            annotation_text=f"Book average: {fraud_flag_rate:.1f}%",
+            annotation_position="top left",
+            annotation_font=dict(color=SLATE, size=12),
+        )
+        st.plotly_chart(add_depth(fig5), width='stretch')
+        st.caption("Takeaway: shows whether certain acquisition channels bring in riskier business, relative to the book average.")
 
 # =========================================================
-# VISUAL 2 -- Bar: fraud rate by claim type
+# REVIEW PIPELINE TAB
 # =========================================================
-with col2:
-    by_type = (
-        f_claims.groupby("claim_type")
-        .agg(total=("claim_id", "count"), flagged=("fraud_flag", "sum"))
-        .reset_index()
-    )
-    by_type["fraud_rate_pct"] = (by_type["flagged"] / by_type["total"] * 100).round(2)
-    by_type_sorted = by_type.sort_values("fraud_rate_pct", ascending=False)
-    fig2 = px.bar(
-        by_type_sorted,
-        x="claim_type", y="fraud_rate_pct",
-        title="Fraud Flag Rate by Claim Type",
-        labels={"claim_type": "Claim Type", "fraud_rate_pct": "Fraud Rate (%)"},
-        text="fraud_rate_pct",
-    )
-    fig2.update_traces(
-        marker_color=CHART_SEQUENCE[: len(by_type_sorted)],
-        marker_line_width=0, textposition="outside",
-    )
-    st.plotly_chart(add_depth(fig2), use_container_width=True)
-    st.caption("Takeaway: identifies which claim types carry the highest fraud risk.")
-
-col3, col4 = st.columns(2)
-
-# =========================================================
-# VISUAL 3 -- Bar: indicator type volume & average score
-# =========================================================
-with col3:
-    by_indicator = (
-        f_indicators.groupby("indicator_type")
-        .agg(count=("indicator_id", "count"), avg_score=("score", "mean"))
-        .reset_index()
-        .sort_values("count", ascending=False)
-    )
-    fig3 = px.bar(
-        by_indicator, x="indicator_type", y="count",
-        color="avg_score", color_continuous_scale=[NAVY, AMBER, RED],
-        title="Indicator Volume & Avg. Risk Score by Type",
-        labels={"indicator_type": "Indicator Type", "count": "Number Raised",
-                "avg_score": "Avg Score"},
-    )
-    fig3.update_traces(marker_line_width=0)
-    st.plotly_chart(add_depth(fig3), use_container_width=True)
-    st.caption("Takeaway: shows which fraud signal fires most, and how severe it tends to be.")
-
-# =========================================================
-# VISUAL 4 -- Funnel: review pipeline status
-# =========================================================
-with col4:
+with tab_pipeline:
     status_order = ["Flagged", "Under Review", "Confirmed", "Cleared"]
     status_counts = (
         f_indicators["review_status"].value_counts()
@@ -518,51 +549,27 @@ with col4:
     fig4.update_traces(
         marker=dict(color=[FUNNEL_COLORS.get(s, NAVY) for s in status_counts["review_status"]])
     )
-    st.plotly_chart(add_depth(fig4), use_container_width=True)
-    st.caption("Takeaway: shows where cases are piling up in the review process.")
+    fig_col, _ = st.columns([2, 1])
+    with fig_col:
+        st.plotly_chart(add_depth(fig4), width='stretch')
+    st.caption("Takeaway: shows where cases are piling up in the review process — "
+               "amber stages are still open, red is confirmed fraud, green is cleared.")
 
 # =========================================================
-# VISUAL 5 -- Bar: fraud rate by channel
+# DRILL-DOWN TAB -- pick a claim type to see underlying records
 # =========================================================
-by_channel = (
-    f_claims.groupby("channel")
-    .agg(total=("claim_id", "count"), flagged=("fraud_flag", "sum"))
-    .reset_index()
-)
-by_channel["fraud_rate_pct"] = (by_channel["flagged"] / by_channel["total"] * 100).round(2)
-
-by_channel_sorted = by_channel.sort_values("fraud_rate_pct", ascending=False)
-fig5 = px.bar(
-    by_channel_sorted,
-    x="channel", y="fraud_rate_pct",
-    title="Fraud Flag Rate by Sales Channel",
-    labels={"channel": "Channel", "fraud_rate_pct": "Fraud Rate (%)"},
-    text="fraud_rate_pct",
-)
-fig5.update_traces(
-    marker_color=CHART_SEQUENCE[: len(by_channel_sorted)],
-    marker_line_width=0, textposition="outside",
-)
-st.plotly_chart(add_depth(fig5), use_container_width=True)
-st.caption("Takeaway: shows whether certain acquisition channels bring in riskier business.")
-
-st.divider()
-
-# =========================================================
-# DRILL-DOWN -- pick a claim type to see underlying records
-# =========================================================
-st.markdown('<div id="drill-down"></div>', unsafe_allow_html=True)
-st.subheader("Drill-down: underlying records")
-drill_type = st.selectbox("Choose a claim type to inspect", claim_types)
-drill_df = f_indicators[f_indicators["claim_type"] == drill_type][
-    ["claim_id", "indicator_type", "score", "review_status",
-     "claim_amount", "status", "channel", "claim_month"]
-].sort_values("score", ascending=False)
-st.dataframe(drill_df, use_container_width=True)
-st.caption(
-    f"Showing {len(drill_df)} fraud-indicator records for claim type "
-    f"'{drill_type}', sorted by risk score (highest first)."
-)
+with tab_drilldown:
+    st.subheader("Underlying records")
+    drill_type = st.selectbox("Choose a claim type to inspect", claim_types)
+    drill_df = f_indicators[f_indicators["claim_type"] == drill_type][
+        ["claim_id", "indicator_type", "score", "review_status",
+         "claim_amount", "status", "channel", "claim_month"]
+    ].sort_values("score", ascending=False)
+    st.dataframe(drill_df, width='stretch')
+    st.caption(
+        f"Showing {len(drill_df)} fraud-indicator records for claim type "
+        f"'{drill_type}', sorted by risk score (highest first)."
+    )
 
 # =========================================================
 # BACK TO TOP -- floating button, always in view
